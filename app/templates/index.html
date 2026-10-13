@@ -1,0 +1,942 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>To-Do List API | Flask & PostgreSQL</title>
+  <meta name="description" content="Panel interactivo y documentación de pruebas para la API REST de To-Do List en Flask y PostgreSQL.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-gradient: radial-gradient(circle at 10% 20%, #0d1117 0%, #161b22 90%);
+      --surface: rgba(22, 27, 34, 0.85);
+      --surface-card: rgba(33, 38, 45, 0.7);
+      --surface-border: rgba(240, 246, 252, 0.1);
+      --accent: #6366f1;
+      --accent-glow: rgba(99, 102, 241, 0.25);
+      --accent-hover: #4f46e5;
+      --success: #10b981;
+      --success-bg: rgba(16, 185, 129, 0.15);
+      --warning: #f59e0b;
+      --warning-bg: rgba(245, 158, 11, 0.15);
+      --danger: #ef4444;
+      --danger-bg: rgba(239, 68, 68, 0.15);
+      --text: #f0f6fc;
+      --text-muted: #8b949e;
+      --font-main: 'Plus Jakarta Sans', system-ui, -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      background: #090d16;
+      background-image: 
+        radial-gradient(at 0% 0%, rgba(99, 102, 241, 0.12) 0px, transparent 50%),
+        radial-gradient(at 100% 0%, rgba(16, 185, 129, 0.08) 0px, transparent 50%),
+        radial-gradient(at 50% 100%, rgba(139, 92, 246, 0.1) 0px, transparent 50%);
+      color: var(--text);
+      font-family: var(--font-main);
+      min-height: 100vh;
+      padding: 2rem 1rem;
+      line-height: 1.5;
+    }
+
+    .container {
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    /* Header */
+    header {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 20px;
+      padding: 1.75rem 2rem;
+      backdrop-filter: blur(16px);
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+      margin-bottom: 2rem;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 1.5rem;
+    }
+
+    .header-info h1 {
+      font-size: 1.85rem;
+      font-weight: 800;
+      letter-spacing: -0.02em;
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      background: linear-gradient(135deg, #ffffff 40%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .header-info p {
+      color: var(--text-muted);
+      font-size: 0.95rem;
+      margin-top: 0.25rem;
+    }
+
+    .status-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      border-radius: 9999px;
+      font-size: 0.85rem;
+      font-weight: 600;
+      border: 1px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .status-healthy {
+      background: var(--success-bg);
+      color: #34d399;
+      border-color: rgba(52, 211, 153, 0.3);
+    }
+
+    .status-error {
+      background: var(--danger-bg);
+      color: #f87171;
+      border-color: rgba(248, 113, 113, 0.3);
+    }
+
+    .status-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: currentColor;
+      box-shadow: 0 0 8px currentColor;
+    }
+
+    /* Grid Layout */
+    .dashboard-grid {
+      display: grid;
+      grid-template-columns: 1fr 1.25fr;
+      gap: 2rem;
+    }
+
+    @media (max-width: 960px) {
+      .dashboard-grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Cards */
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--surface-border);
+      border-radius: 20px;
+      padding: 1.75rem;
+      backdrop-filter: blur(12px);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+
+    .card-title {
+      font-size: 1.25rem;
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    /* Forms */
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #c9d1d9;
+      margin-bottom: 0.4rem;
+    }
+
+    input[type="text"], textarea {
+      width: 100%;
+      padding: 0.75rem 1rem;
+      background: rgba(13, 17, 23, 0.8);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      color: var(--text);
+      font-family: var(--font-main);
+      font-size: 0.95rem;
+      transition: all 0.2s ease;
+    }
+
+    input[type="text"]:focus, textarea:focus {
+      outline: none;
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-glow);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+    }
+
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+      padding: 0.75rem 1.5rem;
+      border-radius: 12px;
+      font-family: var(--font-main);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      border: none;
+      transition: all 0.2s ease;
+      text-decoration: none;
+    }
+
+    .btn-primary {
+      background: linear-gradient(135deg, var(--accent) 0%, #4f46e5 100%);
+      color: #ffffff;
+      box-shadow: 0 4px 14px var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      opacity: 0.95;
+      transform: translateY(-1px);
+    }
+
+    .btn-sm {
+      padding: 0.4rem 0.75rem;
+      font-size: 0.8rem;
+      border-radius: 8px;
+    }
+
+    .btn-outline {
+      background: transparent;
+      border: 1px solid var(--surface-border);
+      color: var(--text);
+    }
+
+    .btn-outline:hover {
+      background: rgba(255, 255, 255, 0.05);
+      border-color: rgba(255, 255, 255, 0.2);
+    }
+
+    .btn-success {
+      background: var(--success);
+      color: #052e16;
+      font-weight: 700;
+    }
+
+    .btn-danger {
+      background: var(--danger-bg);
+      color: #f87171;
+      border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+
+    .btn-danger:hover {
+      background: var(--danger);
+      color: white;
+    }
+
+    /* Filters & Stats */
+    .filter-bar {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.5rem;
+      margin-bottom: 1.25rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+
+    .filter-buttons {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    .filter-btn {
+      padding: 0.35rem 0.85rem;
+      border-radius: 8px;
+      background: rgba(22, 27, 34, 0.6);
+      border: 1px solid var(--surface-border);
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .filter-btn.active {
+      background: var(--accent);
+      color: #fff;
+      border-color: var(--accent);
+    }
+
+    /* Tasks List */
+    .tasks-container {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      max-height: 520px;
+      overflow-y: auto;
+      padding-right: 0.25rem;
+    }
+
+    .task-card {
+      background: var(--surface-card);
+      border: 1px solid var(--surface-border);
+      border-radius: 14px;
+      padding: 1.1rem;
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      transition: all 0.2s ease;
+      position: relative;
+    }
+
+    .task-card:hover {
+      border-color: rgba(99, 102, 241, 0.4);
+      transform: translateY(-2px);
+      box-shadow: 0 6px 16px rgba(0, 0, 0, 0.25);
+    }
+
+    .task-card.completed {
+      border-color: rgba(16, 185, 129, 0.3);
+      opacity: 0.8;
+      background: rgba(16, 185, 129, 0.04);
+    }
+
+    .task-header {
+      display: flex;
+      align-items: flex-start;
+      justify-content: space-between;
+      gap: 1rem;
+    }
+
+    .task-title {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: #fff;
+      word-break: break-word;
+    }
+
+    .task-card.completed .task-title {
+      text-decoration: line-through;
+      color: #9ca3af;
+    }
+
+    .task-desc {
+      font-size: 0.88rem;
+      color: var(--text-muted);
+      word-break: break-word;
+    }
+
+    .task-meta {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding-top: 0.5rem;
+      border-top: 1px solid rgba(255, 255, 255, 0.06);
+      font-size: 0.75rem;
+      color: var(--text-muted);
+    }
+
+    .task-actions {
+      display: flex;
+      gap: 0.4rem;
+    }
+
+    /* Console & Documentation Section */
+    .docs-section {
+      margin-top: 2rem;
+    }
+
+    .tabs {
+      display: flex;
+      gap: 0.5rem;
+      border-bottom: 1px solid var(--surface-border);
+      margin-bottom: 1.5rem;
+    }
+
+    .tab-btn {
+      padding: 0.65rem 1.25rem;
+      background: transparent;
+      border: none;
+      color: var(--text-muted);
+      font-weight: 600;
+      font-size: 0.95rem;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      transition: all 0.2s ease;
+    }
+
+    .tab-btn.active {
+      color: var(--text);
+      border-bottom-color: var(--accent);
+    }
+
+    .tab-pane {
+      display: none;
+    }
+
+    .tab-pane.active {
+      display: block;
+    }
+
+    /* Code block */
+    pre {
+      background: #0d1117;
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 1.2rem;
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 0.85rem;
+      color: #e6edf3;
+      margin-bottom: 1rem;
+      position: relative;
+    }
+
+    .endpoint-badge {
+      display: inline-block;
+      font-family: var(--font-mono);
+      font-size: 0.75rem;
+      font-weight: 700;
+      padding: 0.25rem 0.5rem;
+      border-radius: 6px;
+      margin-right: 0.5rem;
+    }
+
+    .badge-get { background: #0284c7; color: #fff; }
+    .badge-post { background: #16a34a; color: #fff; }
+    .badge-put { background: #d97706; color: #fff; }
+    .badge-patch { background: #9333ea; color: #fff; }
+    .badge-delete { background: #dc2626; color: #fff; }
+
+    .endpoint-item {
+      background: rgba(22, 27, 34, 0.6);
+      border: 1px solid var(--surface-border);
+      border-radius: 12px;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+
+    .endpoint-url {
+      font-family: var(--font-mono);
+      font-weight: 600;
+      font-size: 0.95rem;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 3rem 1rem;
+      color: var(--text-muted);
+    }
+
+    /* Modal for Editing */
+    .modal {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.75);
+      backdrop-filter: blur(8px);
+      z-index: 1000;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    .modal.open {
+      display: flex;
+    }
+
+    .modal-content {
+      background: #161b22;
+      border: 1px solid var(--surface-border);
+      border-radius: 20px;
+      padding: 2rem;
+      max-width: 500px;
+      width: 100%;
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.6);
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <!-- Header -->
+    <header>
+      <div class="header-info">
+        <h1>
+          <span>⚡</span> To-Do List API
+        </h1>
+        <p>API REST construida con <strong>Flask</strong> y persistencia en <strong>PostgreSQL</strong></p>
+      </div>
+
+      <div id="db-status-container">
+        <div id="db-status" class="status-badge status-healthy">
+          <span class="status-dot"></span>
+          <span id="db-status-text">Verificando base de datos...</span>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Dashboard -->
+    <div class="dashboard-grid">
+      <!-- Formulario para Crear / Probar la API -->
+      <section class="card">
+        <h2 class="card-title">
+          <span>➕ Crear Nueva Tarea</span>
+          <span style="font-size: 0.75rem; color: var(--text-muted); font-weight: normal;">POST /api/tasks</span>
+        </h2>
+
+        <form id="create-task-form">
+          <div class="form-group">
+            <label for="task-title">Título de la Tarea *</label>
+            <input type="text" id="task-title" placeholder="Ej. Implementar autenticación JWT" required>
+          </div>
+
+          <div class="form-group">
+            <label for="task-description">Descripción (opcional)</label>
+            <textarea id="task-description" placeholder="Detalles, notas o especificaciones de la tarea..."></textarea>
+          </div>
+
+          <button type="submit" class="btn btn-primary" style="width: 100%;">
+            <span>Guardar Tarea en PostgreSQL</span>
+          </button>
+        </form>
+
+        <div style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid var(--surface-border);">
+          <h3 style="font-size: 0.95rem; font-weight: 700; margin-bottom: 0.75rem; color: #a5b4fc;">
+            💡 Probador Rápido desde el Navegador:
+          </h3>
+          <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 0.75rem;">
+            Puedes interactuar con los botones de la derecha o abrir directamente estas URLs en pestañas de tu navegador:
+          </p>
+          <div style="display: flex; flex-direction: column; gap: 0.4rem;">
+            <a href="/api/tasks" target="_blank" class="btn btn-sm btn-outline" style="justify-content: flex-start;">
+              <span class="endpoint-badge badge-get">GET</span> /api/tasks (Ver JSON de todas las tareas)
+            </a>
+            <a href="/api/health" target="_blank" class="btn btn-sm btn-outline" style="justify-content: flex-start;">
+              <span class="endpoint-badge badge-get">GET</span> /api/health (Estado de conexión PostgreSQL)
+            </a>
+          </div>
+        </div>
+      </section>
+
+      <!-- Lista de Tareas en Vivo -->
+      <section class="card">
+        <div class="card-title">
+          <div style="display: flex; align-items: center; gap: 0.5rem;">
+            <span>📋 Tareas Registradas</span>
+            <span id="tasks-count" style="font-size: 0.8rem; background: rgba(99, 102, 241, 0.2); color: #a5b4fc; padding: 0.2rem 0.6rem; border-radius: 999px;">0</span>
+          </div>
+
+          <button onclick="loadTasks()" class="btn btn-sm btn-outline" title="Recargar tareas">
+            🔄 Refrescar
+          </button>
+        </div>
+
+        <div class="filter-bar">
+          <div class="filter-buttons">
+            <button class="filter-btn active" data-filter="all" onclick="setFilter('all', this)">Todas</button>
+            <button class="filter-btn" data-filter="false" onclick="setFilter('false', this)">Pendientes</button>
+            <button class="filter-btn" data-filter="true" onclick="setFilter('true', this)">Terminadas</button>
+          </div>
+
+          <div style="flex: 1; max-width: 180px;">
+            <input type="text" id="search-input" placeholder="Buscar..." oninput="handleSearch()" style="padding: 0.35rem 0.65rem; font-size: 0.85rem;">
+          </div>
+        </div>
+
+        <div id="tasks-list" class="tasks-container">
+          <div class="empty-state">Cargando tareas...</div>
+        </div>
+      </section>
+    </div>
+
+    <!-- Guía y Documentación de Endpoints -->
+    <section class="card docs-section">
+      <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('endpoints', this)">Endpoints de la API</button>
+        <button class="tab-btn" onclick="switchTab('curl', this)">Comandos cURL (Terminal)</button>
+        <button class="tab-btn" onclick="switchTab('powershell', this)">Comandos PowerShell</button>
+      </div>
+
+      <!-- Tab 1: Endpoints -->
+      <div id="tab-endpoints" class="tab-pane active">
+        <div class="endpoint-item">
+          <div>
+            <span class="endpoint-badge badge-get">GET</span>
+            <span class="endpoint-url">/api/tasks</span>
+            <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">Listar todas las tareas (admite ?completed=true|false y ?search=texto)</span>
+          </div>
+        </div>
+
+        <div class="endpoint-item">
+          <div>
+            <span class="endpoint-badge badge-get">GET</span>
+            <span class="endpoint-url">/api/tasks/&lt;id&gt;</span>
+            <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">Obtener el detalle de una tarea específica</span>
+          </div>
+        </div>
+
+        <div class="endpoint-item">
+          <div>
+            <span class="endpoint-badge badge-post">POST</span>
+            <span class="endpoint-url">/api/tasks</span>
+            <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">Crear una nueva tarea (Body: JSON con "title" y opcional "description")</span>
+          </div>
+        </div>
+
+        <div class="endpoint-item">
+          <div>
+            <span class="endpoint-badge badge-put">PUT</span>
+            <span class="endpoint-url">/api/tasks/&lt;id&gt;</span>
+            <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">Editar campos de una tarea existente</span>
+          </div>
+        </div>
+
+        <div class="endpoint-item">
+          <div>
+            <span class="endpoint-badge badge-patch">PATCH</span>
+            <span class="endpoint-url">/api/tasks/&lt;id&gt;/complete</span>
+            <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">Terminar una tarea (marcar como completada)</span>
+          </div>
+        </div>
+
+        <div class="endpoint-item">
+          <div>
+            <span class="endpoint-badge badge-delete">DELETE</span>
+            <span class="endpoint-url">/api/tasks/&lt;id&gt;</span>
+            <span style="color: var(--text-muted); font-size: 0.85rem; margin-left: 0.5rem;">Eliminar permanentemente una tarea</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Tab 2: cURL -->
+      <div id="tab-curl" class="tab-pane">
+        <p style="color: var(--text-muted); margin-bottom: 0.5rem; font-size: 0.9rem;">Ejemplos directos de cURL para correr en tu consola:</p>
+        <pre><code># 1. Listar todas las tareas
+curl -X GET http://127.0.0.1:5000/api/tasks
+
+# 2. Crear una nueva tarea
+curl -X POST http://127.0.0.1:5000/api/tasks \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Aprender Flask con Postgres", "description": "Crear modelos y migraciones"}'
+
+# 3. Editar una tarea existente (Ej: ID 1)
+curl -X PUT http://127.0.0.1:5000/api/tasks/1 \
+  -H "Content-Type: application/json" \
+  -d '{"title": "Aprender Flask Avanzado", "description": "Actualizado"}'
+
+# 4. Terminar / Completar una tarea (Ej: ID 1)
+curl -X PATCH http://127.0.0.1:5000/api/tasks/1/complete
+
+# 5. Eliminar una tarea (Ej: ID 1)
+curl -X DELETE http://127.0.0.1:5000/api/tasks/1</code></pre>
+      </div>
+
+      <!-- Tab 3: PowerShell -->
+      <div id="tab-powershell" class="tab-pane">
+        <p style="color: var(--text-muted); margin-bottom: 0.5rem; font-size: 0.9rem;">Comandos nativos para Windows PowerShell (Invoke-RestMethod):</p>
+        <pre><code># 1. Listar tareas
+Invoke-RestMethod -Uri "http://127.0.0.1:5000/api/tasks" -Method Get
+
+# 2. Crear una nueva tarea
+Invoke-RestMethod -Uri "http://127.0.0.1:5000/api/tasks" -Method Post -ContentType "application/json" -Body '{"title": "Estudiar PostgreSQL", "description": "Configurar tablas y claves"}'
+
+# 3. Editar una tarea (ID 1)
+Invoke-RestMethod -Uri "http://127.0.0.1:5000/api/tasks/1" -Method Put -ContentType "application/json" -Body '{"title": "Estudiar PostgreSQL Avanzado"}'
+
+# 4. Terminar / Completar tarea (ID 1)
+Invoke-RestMethod -Uri "http://127.0.0.1:5000/api/tasks/1/complete" -Method Patch
+
+# 5. Eliminar tarea (ID 1)
+Invoke-RestMethod -Uri "http://127.0.0.1:5000/api/tasks/1" -Method Delete</code></pre>
+      </div>
+    </section>
+  </div>
+
+  <!-- Modal para Editar Tarea -->
+  <div id="edit-modal" class="modal">
+    <div class="modal-content">
+      <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 1rem;">✏️ Editar Tarea</h3>
+      <form id="edit-task-form">
+        <input type="hidden" id="edit-task-id">
+        <div class="form-group">
+          <label for="edit-task-title">Título *</label>
+          <input type="text" id="edit-task-title" required>
+        </div>
+        <div class="form-group">
+          <label for="edit-task-desc">Descripción</label>
+          <textarea id="edit-task-desc"></textarea>
+        </div>
+        <div style="display: flex; justify-content: flex-end; gap: 0.5rem;">
+          <button type="button" class="btn btn-outline" onclick="closeEditModal()">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <script>
+    let currentFilter = 'all';
+    let searchQuery = '';
+
+    // Comprobar estado de salud y PostgreSQL al cargar
+    async function checkHealth() {
+      const statusEl = document.getElementById('db-status');
+      const textEl = document.getElementById('db-status-text');
+      try {
+        const res = await fetch('/api/health');
+        const data = await res.json();
+        if (res.ok && data.status === 'healthy') {
+          statusEl.className = 'status-badge status-healthy';
+          textEl.textContent = 'PostgreSQL Conectado';
+        } else {
+          statusEl.className = 'status-badge status-error';
+          textEl.textContent = 'Error DB (Revisar .env)';
+        }
+      } catch (err) {
+        statusEl.className = 'status-badge status-error';
+        textEl.textContent = 'API no responde';
+      }
+    }
+
+    // Cargar y mostrar lista de tareas
+    async function loadTasks() {
+      const container = document.getElementById('tasks-list');
+      const countBadge = document.getElementById('tasks-count');
+
+      try {
+        let url = '/api/tasks?';
+        if (currentFilter !== 'all') {
+          url += `completed=${currentFilter}&`;
+        }
+        if (searchQuery.trim()) {
+          url += `search=${encodeURIComponent(searchQuery.trim())}&`;
+        }
+
+        const res = await fetch(url);
+        const data = await res.json();
+
+        if (!res.ok) {
+          container.innerHTML = `<div class="empty-state" style="color: #f87171;">⚠️ ${data.error || 'Error al cargar tareas'}</div>`;
+          return;
+        }
+
+        countBadge.textContent = data.count || 0;
+
+        if (!data.tasks || data.tasks.length === 0) {
+          container.innerHTML = `
+            <div class="empty-state">
+              <p style="font-size: 1.5rem; margin-bottom: 0.5rem;">✨</p>
+              <p>No hay tareas registradas con este filtro.</p>
+            </div>`;
+          return;
+        }
+
+        container.innerHTML = data.tasks.map(task => {
+          const isDone = task.completed;
+          const created = task.created_at ? new Date(task.created_at).toLocaleString() : '';
+          return `
+            <div class="task-card ${isDone ? 'completed' : ''}" id="task-${task.id}">
+              <div class="task-header">
+                <div>
+                  <h4 class="task-title">${escapeHtml(task.title)}</h4>
+                  ${task.description ? `<p class="task-desc">${escapeHtml(task.description)}</p>` : ''}
+                </div>
+              </div>
+
+              <div class="task-meta">
+                <span>#${task.id} &bull; ${created}</span>
+                <div class="task-actions">
+                  <button 
+                    onclick="toggleComplete(${task.id}, ${!isDone})" 
+                    class="btn btn-sm ${isDone ? 'btn-outline' : 'btn-success'}"
+                    title="${isDone ? 'Marcar como pendiente' : 'Terminar tarea'}">
+                    ${isDone ? '↩️ Desmarcar' : '✅ Terminar'}
+                  </button>
+                  <button 
+                    onclick="openEditModal(${task.id}, '${escapeQuote(task.title)}', '${escapeQuote(task.description || '')}')" 
+                    class="btn btn-sm btn-outline"
+                    title="Editar tarea">
+                    ✏️
+                  </button>
+                  <button 
+                    onclick="deleteTask(${task.id})" 
+                    class="btn btn-sm btn-danger"
+                    title="Eliminar tarea">
+                    🗑️
+                  </button>
+                </div>
+              </div>
+            </div>
+          `;
+        }).join('');
+
+      } catch (err) {
+        container.innerHTML = `<div class="empty-state" style="color: #f87171;">Error al consultar la API: ${err.message}</div>`;
+      }
+    }
+
+    // Crear Tarea (POST /api/tasks)
+    document.getElementById('create-task-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const titleInput = document.getElementById('task-title');
+      const descInput = document.getElementById('task-description');
+
+      const body = {
+        title: titleInput.value.trim(),
+        description: descInput.value.trim()
+      };
+
+      try {
+        const res = await fetch('/api/tasks', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body)
+        });
+
+        const data = await res.json();
+        if (res.ok) {
+          titleInput.value = '';
+          descInput.value = '';
+          await loadTasks();
+        } else {
+          alert('Error: ' + (data.error || 'No se pudo crear la tarea'));
+        }
+      } catch (err) {
+        alert('Error al conectar con la API: ' + err.message);
+      }
+    });
+
+    // Terminar / Desmarcar Tarea (PATCH /api/tasks/<id>/complete)
+    async function toggleComplete(id, completed) {
+      try {
+        const res = await fetch(`/api/tasks/${id}/complete`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ completed: completed })
+        });
+        if (res.ok) {
+          await loadTasks();
+        } else {
+          const data = await res.json();
+          alert('Error: ' + (data.error || 'No se pudo cambiar el estado'));
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // Eliminar Tarea (DELETE /api/tasks/<id>)
+    async function deleteTask(id) {
+      if (!confirm(`¿Estás seguro de que deseas eliminar la tarea #${id}?`)) return;
+      try {
+        const res = await fetch(`/api/tasks/${id}`, {
+          method: 'DELETE'
+        });
+        if (res.ok) {
+          await loadTasks();
+        } else {
+          const data = await res.json();
+          alert('Error al eliminar: ' + (data.error || 'No se pudo eliminar'));
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    }
+
+    // Modales y Edición (PUT /api/tasks/<id>)
+    function openEditModal(id, title, desc) {
+      document.getElementById('edit-task-id').value = id;
+      document.getElementById('edit-task-title').value = title;
+      document.getElementById('edit-task-desc').value = desc;
+      document.getElementById('edit-modal').classList.add('open');
+    }
+
+    function closeEditModal() {
+      document.getElementById('edit-modal').classList.remove('open');
+    }
+
+    document.getElementById('edit-task-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const id = document.getElementById('edit-task-id').value;
+      const title = document.getElementById('edit-task-title').value.trim();
+      const description = document.getElementById('edit-task-desc').value.trim();
+
+      try {
+        const res = await fetch(`/api/tasks/${id}`, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, description })
+        });
+        if (res.ok) {
+          closeEditModal();
+          await loadTasks();
+        } else {
+          const data = await res.json();
+          alert('Error al editar: ' + (data.error || ''));
+        }
+      } catch (err) {
+        alert('Error: ' + err.message);
+      }
+    });
+
+    // Filtros y Búsqueda
+    function setFilter(filter, btn) {
+      currentFilter = filter;
+      document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      loadTasks();
+    }
+
+    let searchTimeout;
+    function handleSearch() {
+      clearTimeout(searchTimeout);
+      searchTimeout = setTimeout(() => {
+        searchQuery = document.getElementById('search-input').value;
+        loadTasks();
+      }, 250);
+    }
+
+    // Tabs de documentación
+    function switchTab(tabName, btn) {
+      document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+      document.querySelectorAll('.tab-pane').forEach(p => p.classList.remove('active'));
+      btn.classList.add('active');
+      document.getElementById(`tab-${tabName}`).classList.add('active');
+    }
+
+    function escapeHtml(text) {
+      if (!text) return '';
+      return text.replace(/[&<>"']/g, function(m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[m];
+      });
+    }
+
+    function escapeQuote(text) {
+      if (!text) return '';
+      return text.replace(/'/g, "\\'").replace(/"/g, '&quot;');
+    }
+
+    // Inicialización al cargar la página
+    window.addEventListener('DOMContentLoaded', () => {
+      checkHealth();
+      loadTasks();
+    });
+  </script>
+</body>
+</html>
